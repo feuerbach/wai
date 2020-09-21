@@ -155,22 +155,29 @@ mkAutoUpdateHelper us updateActionModify = do
     -- calls myThreadId, normal async exceptions can never be thrown to it,
     -- only RTS exceptions.
     mask_ $ void $ forkIO $ fillRefOnExit $ do
+        putStrLn "++++++++++ auto-update: Entering the worker thread"
         -- This infinite loop makes up out worker thread. It takes an a
         -- responseVar value where the next value should be putMVar'ed to for
         -- the benefit of any requesters currently blocked on it.
         let loop responseVar maybea = do
                 -- block until a value is actually needed
+                putStrLn "++++++++++ auto-update: Entering the loop"
                 takeMVar needsRunning
+                putStrLn "++++++++++ auto-update: taken the needsRunning mvar"
 
                 -- new value requested, so run the updateAction
                 a <- catchSome $ maybe (updateAction us) id (updateActionModify <*> maybea)
+                putStrLn "++++++++++ auto-update: ran update action"
 
                 -- we got a new value, update currRef and lastValue
                 writeIORef currRef $ Right a
+                putStrLn "++++++++++ auto-update: wrote currRef"
                 putMVar responseVar a
+                putStrLn "++++++++++ auto-update: put responseVar"
 
                 -- delay until we're needed again
                 threadDelay $ updateFreq us
+                putStrLn "++++++++++ auto-update: finished the delay"
 
                 -- delay's over. create a new response variable and set currRef
                 -- to use it, so that the next requester will block on that
@@ -178,6 +185,7 @@ mkAutoUpdateHelper us updateActionModify = do
                 -- variable.
                 responseVar' <- newEmptyMVar
                 writeIORef currRef $ Left responseVar'
+                putStrLn "++++++++++ auto-update: updated currRef"
                 loop responseVar' (Just a)
 
         -- Kick off the loop, with the initial responseVar0 variable.
