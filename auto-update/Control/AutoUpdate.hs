@@ -51,6 +51,7 @@ import           Control.Exception       (SomeException, catch, mask_, throw,
                                           try)
 import           Control.Monad           (void)
 import           Data.IORef              (newIORef, readIORef, writeIORef)
+import GHC.Stack
 
 -- | Default value for creating an 'UpdateSettings'.
 --
@@ -102,7 +103,7 @@ data UpdateSettings a = UpdateSettings
 -- updated value, or run the update action in the current thread.
 --
 -- @since 0.1.0
-mkAutoUpdate :: UpdateSettings a -> IO (IO a)
+mkAutoUpdate :: HasCallStack => UpdateSettings a -> IO (IO a)
 mkAutoUpdate us = mkAutoUpdateHelper us Nothing
 
 -- | Generate an action which will either read from an automatically
@@ -113,7 +114,7 @@ mkAutoUpdate us = mkAutoUpdateHelper us Nothing
 mkAutoUpdateWithModify :: UpdateSettings a -> (a -> IO a) -> IO (IO a)
 mkAutoUpdateWithModify us f = mkAutoUpdateHelper us (Just f)
 
-mkAutoUpdateHelper :: UpdateSettings a -> Maybe (a -> IO a) -> IO (IO a)
+mkAutoUpdateHelper :: HasCallStack => UpdateSettings a -> Maybe (a -> IO a) -> IO (IO a)
 mkAutoUpdateHelper us updateActionModify = do
     -- A baton to tell the worker thread to generate a new value.
     needsRunning <- newEmptyMVar
